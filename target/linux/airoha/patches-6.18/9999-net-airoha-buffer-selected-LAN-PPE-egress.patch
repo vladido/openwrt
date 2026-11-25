@@ -1,0 +1,35 @@
+Subject: [PATCH] net: airoha: opt XR1710G GDM4 into buffered PPE egress
+
+Rebase orangeyoo v2.02 GDM4 descriptor selection onto upstream.
+Leave WAN, DSA and other boards unchanged.
+
+--- a/Documentation/devicetree/bindings/net/airoha,en7581-eth.yaml
++++ b/Documentation/devicetree/bindings/net/airoha,en7581-eth.yaml
+@@ -72,6 +72,10 @@
+ 
+   "#size-cells":
+     const: 0
++
++  airoha,buffered-gdm4:
++    type: boolean
++    description: Use DRAM descriptors for PPE forwarding to direct GDM4 LAN.
+ 
+   airoha,npu:
+     $ref: /schemas/types.yaml#/definitions/phandle
+--- a/drivers/net/ethernet/airoha/airoha_ppe.c
++++ b/drivers/net/ethernet/airoha/airoha_ppe.c
+@@ -424,10 +424,10 @@
+ 			val |= FIELD_PREP(AIROHA_FOE_IB2_PSE_PORT, pse_port) |
+ 			       FIELD_PREP(AIROHA_FOE_IB2_DSCP, dsfield) |
+ 			       AIROHA_FOE_IB2_PSE_QOS;
+-			/* For downlink traffic consume SRAM memory for hw
+-			 * forwarding descriptors queue.
+-			 */
+-			if (airoha_is_lan_gdm_dev(dev))
++			/* Affected direct LAN ports use the DRAM descriptor queue. */
++			if (airoha_is_lan_gdm_dev(dev) &&
++			    (dsa_port >= 0 || port->id != AIROHA_GDM4_IDX ||
++			     !device_property_read_bool(eth->dev, "airoha,buffered-gdm4")))
+ 				val |= AIROHA_FOE_IB2_FAST_PATH;
+ 			/* GDM3/GDM4 select their external SerDes through NBQ. */
+ 			if (pse_port == FE_PSE_PORT_GDM3 ||

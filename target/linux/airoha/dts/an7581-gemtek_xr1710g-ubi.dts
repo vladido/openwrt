@@ -85,3 +85,7 @@
 	function-enumerator = <4>;
 	active-low;
 };
+
+&eth {
+	airoha,buffered-gdm4;
+};

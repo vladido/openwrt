@@ -1,0 +1,20 @@
+Subject: [PATCH] wifi: mt7996: clamp VHT operating-mode bandwidth
+
+Adapt orangeyoo v2.02 EHT320 width encoding, preserving the
+bandwidth-only OM notification for 20-160 MHz peers.
+
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -2632,7 +2632,11 @@
+ 
+ 	ra->op_mode = cap_bw != link_sta->bandwidth ||
+ 		      cap_nss != link_sta->rx_nss;
+-	ra->op_vht_chan_width = link_sta->bandwidth;
++	/* VHT OM width cannot encode 320 MHz. The EHT bandwidth is
++	 * already carried in ra->bw and ra->phy.bw.
++	 */
++	ra->op_vht_chan_width = min_t(u8, link_sta->bandwidth,
++					  IEEE80211_STA_RX_BW_160);
+ 	ra->op_vht_rx_nss = link_sta->rx_nss ? link_sta->rx_nss - 1 : 0;
+ 	ra->op_vht_rx_nss_type = 0;
+ 
