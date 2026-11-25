@@ -1,0 +1,33 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+case "$ACTION" in
+	add|move) ;;
+	*) exit 0 ;;
+esac
+
+case "${DEVICENAME:-$INTERFACE}" in
+	phy*-ap*|ap-mld*|phy*-mesh*) ;;
+	*) exit 0 ;;
+esac
+
+. /lib/functions.sh
+[ "$(board_name)" = 'gemtek,xr1710g-ubi' ] || exit 0
+[ "$(uci -q get 'firewall.@defaults[0].flow_offloading')" = 1 ] || exit 0
+[ "$(uci -q get 'firewall.@defaults[0].flow_offloading_hw')" = 1 ] || exit 0
+[ -x /etc/init.d/firewall ] || exit 0
+
+# Schedule from the net device event, not from boot: ACS may take longer
+# than a boot timer. Give netifd time to add the device to its bridge.
+lock=/var/run/xr1710g-flow-offload.pending
+mkdir "$lock" 2>/dev/null || exit 0
+(
+	trap 'rmdir "$lock"' EXIT
+	sleep 10
+	# Release before reload so a newly created device can queue another pass.
+	rmdir "$lock" || exit 0
+	trap - EXIT
+	/etc/init.d/firewall reload
+) </dev/null >/dev/null 2>&1 &
+
+exit 0
